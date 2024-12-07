@@ -45,15 +45,11 @@ void labelPropagation(Graph* graph, int* labels) {
 
     while (1) {
         loop_count++;
-        printf("Looping: %d\n", loop_count);
         changed = 0;
 
         shuffle(node_order, V);
 
         for (int k = 0; k < V; ++k) {
-            if (k % 1000 == 0) {
-                printf("Processed %d nodes...\n", k);
-            }
             memset(label_count, 0, V * sizeof(int)); // Reset the array
             int i = node_order[k];
             Node* node = graph->array[i].head;
@@ -81,7 +77,6 @@ void labelPropagation(Graph* graph, int* labels) {
             }
         }
 
-        printf("Loop count: %d\n", loop_count);
         if (!changed || loop_count >= MAX_ITER) {
             printf("Max iterations reached or no changes made. Terminating.\n");
             break;
@@ -122,16 +117,16 @@ void printCommunities(int* labels, int V) {
 
 int main() {
     int directed = 0;
-    int V = 2888; // Number of vertices
+    int V = 4039; // Number of vertices
 
-    // twitter lists V=23370 directed=1 seed=2000
-    const char* filename = "C:datasets\\outego-twitter.txt";
+    // // twitter lists V=23370 directed=1 seed=2000
+    // const char* filename = "C:datasets\\outego-twitter.txt";
+    // Graph* graph = createGraphFromFile(filename, V, directed);
+
+
+   //SNAP facebook V=4039 directed=0 seed=3000
+    const char* filename = "C:datasets\\facebook_combined.txt";
     Graph* graph = createGraphFromFile(filename, V, directed);
-
-
-//    //SNAP facebook V=4039 directed=0 seed=3000
-//     const char* filename = "C:datasets\\facebook_combined.txt";
-//     Graph* graph = createGraphFromFile(filename, V, directed);
 
 //    //facebook lists V=2888 directed=0 seed=3000
 //     const char* filename = "C:datasets\\outego-facebook.txt";

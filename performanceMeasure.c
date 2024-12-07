@@ -61,9 +61,7 @@ double calculateConductance(Graph* graph, int* labels, int V, int directed) {
         free(totalDegree);
         return 0.0;
     }
-
-    printf("Calculating community and boundary edges...\n");
-    for (int v = 0; v < V; ++v) {
+     for (int v = 0; v < V; ++v) {
         Node* node = graph->array[v].head;
         while (node) {
             totalDegree[v]++;  // Count degree of node v
@@ -83,16 +81,14 @@ double calculateConductance(Graph* graph, int* labels, int V, int directed) {
         }
     }
 
-    printf("Calculating conductance for each community...\n");
-    int num_communities = 0;
+     int num_communities = 0;
     for (int i = 0; i < V; ++i) {
         if (totalDegree[i] > 0) {
             num_communities++;
             double internal = communityEdges[i];
             double boundary = boundaryEdges[i];
             double degree = totalDegree[i];
-            printf("Community %d: Internal edges = %f, Boundary edges = %f, Degree = %f\n", i, internal, boundary, degree);
-            if (boundary > 0) {
+             if (boundary > 0) {
                 conductance += boundary / (internal + boundary);
             }
         }
@@ -108,8 +104,7 @@ double calculateConductance(Graph* graph, int* labels, int V, int directed) {
     free(boundaryEdges);
     free(totalDegree);
 
-    printf("Conductance calculated: %f\n", conductance);
-    return conductance;
+     return conductance;
 }
 
 double calculateCoverage(Graph* graph, int* community, int V, int E, int directed) { 
