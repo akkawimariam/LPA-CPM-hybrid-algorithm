@@ -20,8 +20,7 @@ bool isNeighbor(Graph* graph, int u, int v) {
     }
     return false;
 }
-
-void findTriangles(Graph* graph, int* labels, int* clique_count, Clique** cliques) {
+void findTriangles(Graph* graph, int* labels, int* clique_count, Clique*** cliques, int* cliques_size) {
     printf("Running find triangles...\n");
     int V = graph->V;
 
@@ -34,18 +33,37 @@ void findTriangles(Graph* graph, int* labels, int* clique_count, Clique** clique
                 while (neighbor2) {
                     int w = neighbor2->dest;
                     if (w > v && isNeighbor(graph, u, w)) {
-                        //printf("Triangle found: %d, %d, %d\n", u, v, w);
-                        labels[u] = *clique_count;
-                        labels[v] = *clique_count;
-                        labels[w] = *clique_count;
+                        printf("Triangle found: %d, %d, %d\n", u, v, w);
 
-                        cliques[*clique_count] = (Clique*)malloc(sizeof(Clique));
-                        cliques[*clique_count]->vertices = (int*)malloc(3 * sizeof(int));
-                        cliques[*clique_count]->vertices[0] = u;
-                        cliques[*clique_count]->vertices[1] = v;
-                        cliques[*clique_count]->vertices[2] = w;
-                        cliques[*clique_count]->size = 3;
+                        // Check if we need to resize the cliques array
+                        if (*clique_count >= *cliques_size) {
+                            *cliques_size *= 2;
+                            *cliques = (Clique**)realloc(*cliques, (*cliques_size) * sizeof(Clique*));
+                            if (!*cliques) {
+                                printf("Memory allocation failed for cliques array\n");
+                                exit(1);
+                            }
+                        }
 
+                        // Allocate memory for the new clique
+                        (*cliques)[*clique_count] = (Clique*)malloc(sizeof(Clique));
+                        if (!(*cliques)[*clique_count]) {
+                            printf("Memory allocation failed for cliques[%d]\n", *clique_count);
+                            exit(1);
+                        }
+                        (*cliques)[*clique_count]->vertices = (int*)malloc(3 * sizeof(int));
+                        if (!(*cliques)[*clique_count]->vertices) {
+                            printf("Memory allocation failed for cliques[%d]->vertices\n", *clique_count);
+                            exit(1);
+                        }
+
+                        // Assign vertices to the clique
+                        (*cliques)[*clique_count]->vertices[0] = u;
+                        (*cliques)[*clique_count]->vertices[1] = v;
+                        (*cliques)[*clique_count]->vertices[2] = w;
+                        (*cliques)[*clique_count]->size = 3;
+
+                        // Increment the clique count
                         (*clique_count)++;
                     }
                     neighbor2 = neighbor2->next;
@@ -56,23 +74,121 @@ void findTriangles(Graph* graph, int* labels, int* clique_count, Clique** clique
     }
 }
 
-void findCliques(Graph* graph, int k, int* labels, Clique** cliques, int* clique_count) {
+void BronKerboschPivot(Graph* graph, int* R, int* P, int* X, int k, Clique*** cliques, int* clique_count, int* cliques_size) {
+    if (k == 0) {
+        // Found a clique
+        if (*clique_count >= *cliques_size) {
+            *cliques_size *= 2;
+            *cliques = (Clique**)realloc(*cliques, (*cliques_size) * sizeof(Clique*));
+            if (!*cliques) {
+                printf("Memory allocation failed for cliques array\n");
+                exit(1);
+            }
+        }
+
+        (*cliques)[*clique_count] = (Clique*)malloc(sizeof(Clique));
+        if (!(*cliques)[*clique_count]) {
+            printf("Memory allocation failed for cliques[%d]\n", *clique_count);
+            exit(1);
+        }
+        (*cliques)[*clique_count]->vertices = (int*)malloc(k * sizeof(int));
+        if (!(*cliques)[*clique_count]->vertices) {
+            printf("Memory allocation failed for cliques[%d]->vertices\n", *clique_count);
+            exit(1);
+        }
+
+        for (int i = 0; i < k; i++) {
+            (*cliques)[*clique_count]->vertices[i] = R[i];
+        }
+        (*cliques)[*clique_count]->size = k;
+        (*clique_count)++;
+        return;
+    }
+
+    // Choose pivot
+    int pivot = -1;
+    int max_degree = -1;
+    for (int i = 0; i < graph->V; i++) {
+        if (P[i]) {
+            // Calculate the degree of node i by traversing its adjacency list
+            int degree = 0;
+            Node* node = graph->array[i].head;
+            while (node) {
+                degree++;
+                node = node->next;
+            }
+
+            // If this node has a higher degree, select it as the pivot
+            if (degree > max_degree) {
+                max_degree = degree;
+                pivot = i;
+            }
+        }
+    }
+
+    int* newP = (int*)malloc(graph->V * sizeof(int));
+    int* newX = (int*)malloc(graph->V * sizeof(int));
+
+    for (int u = 0; u < graph->V; u++) {
+        if (P[u] && !isNeighbor(graph, u, pivot)) {
+            // Add to R
+            R[k] = u;
+
+            // Recalculate newP and newX
+            int newP_size = 0;
+            int newX_size = 0;
+            for (int i = 0; i < graph->V; i++) {
+                if (P[i] && isNeighbor(graph, u, i)) {
+                    newP[newP_size++] = i;
+                }
+                if (X[i] && isNeighbor(graph, u, i)) {
+                    newX[newX_size++] = i;
+                }
+            }
+
+            // Recurse
+            BronKerboschPivot(graph, R, newP, newX, k + 1, cliques, clique_count, cliques_size);
+
+            // Remove u from P and add to X
+            P[u] = 0;
+            X[u] = 1;
+        }
+    }
+
+    free(newP);
+    free(newX);
+}
+
+
+void findCliques(Graph* graph, int k, int* labels, Clique*** cliques, int* clique_count, int* cliques_size) {
     printf("Finding cliques of size %d...\n", k);
 
-    if (k == 3) {
-        findTriangles(graph, labels, clique_count, cliques);
-    } else {
-        //findKCliques(graph, k, cliques, clique_count);
-    }
+    // if (k == 3) {
+    //     findTriangles(graph, labels, clique_count, cliques, cliques_size);
+    // } else {
+        int* R = (int*)malloc(graph->V * sizeof(int));
+        int* P = (int*)malloc(graph->V * sizeof(int));
+        int* X = (int*)malloc(graph->V * sizeof(int));
+
+        for (int i = 0; i < graph->V; i++) {
+            P[i] = 1;
+            X[i] = 0;
+        }
+
+        BronKerboschPivot(graph, R, P, X, 0, cliques, clique_count, cliques_size);
+
+        free(R);
+        free(P);
+        free(X);
 
     printf("Cliques found: %d\n", *clique_count);
     for (int i = 0; i < *clique_count; ++i) {
-        if (cliques[i] != NULL) {
-            //printf("Clique %d: ", i);
-            // for (int j = 0; j < cliques[i]->size; ++j) {
-            //     printf("%d ", cliques[i]->vertices[j]);
+        if ((*cliques)[i] != NULL) {
+            // //printf("Clique %d: ", i);
+            // for (int j = 0; j < (*cliques)[i]->size; ++j) {
+            //     printf("%d ", (*cliques)[i]->vertices[j]);
             // }
-            //printf("\n");
+            // printf("\n");
         } else {
             printf("Clique %d is NULL\n", i);
         }
@@ -170,9 +286,10 @@ void mapCliquesToNodes(int* labels, int V, Clique** cliques, int num_cliques, in
 
 void cliqueCommunity(Graph* graph, int k, int* labels, int directed) {
     printf("Running clique community detection...\n");
-    Clique** cliques = (Clique**)malloc(graph->V * sizeof(Clique*));
+    int cliques_size = graph->V;
+    Clique** cliques = (Clique**)malloc(cliques_size * sizeof(Clique*));
     int clique_count = 0;
-    findCliques(graph, k, labels, cliques, &clique_count);
+    findCliques(graph, k, labels, &cliques, &clique_count, &cliques_size);
 
     Graph* clique_graph = buildCliqueGraph(cliques, clique_count, k, directed);
 
@@ -181,10 +298,10 @@ void cliqueCommunity(Graph* graph, int k, int* labels, int directed) {
     decomposeGraph(clique_graph, component, &component_count);
 
     // Print the component array to verify component labels
-    printf("Component labels:\n");
-    for (int i = 0; i < clique_count; ++i) {
-        printf("Clique %d -> Component %d\n", i, component[i]);
-    }
+    // printf("Component labels:\n");
+    // for (int i = 0; i < clique_count; ++i) {
+    //     printf("Clique %d -> Component %d\n", i, component[i]);
+    // }
 
    // Call the mapCliquesToNodes function
     mapCliquesToNodes(labels, graph->V, cliques, clique_count, component);
@@ -241,13 +358,13 @@ void printCommunities(int* labels, int V) {
     printf("\nNumber of Communities: %d\n", num_communities);
 
     int counter = 1;
-    // for (int i = 0; i <= max_label; ++i) {
-    //     if (community_count[i] > 0) {
-    //         printf("Community %d: %d nodes\n", counter++, community_count[i]);
-    //     }
-    // }
+    for (int i = 0; i <= max_label; ++i) {
+        if (community_count[i] > 0) {
+            printf("Community %d: %d nodes\n", counter++, community_count[i]);
+        }
+    }
 
-    // printf("\n");
+    printf("\n");
 
     // Step 5: Free allocated memory
     free(community_count);
@@ -256,10 +373,10 @@ void printCommunities(int* labels, int V) {
 
 int main() {
     int directed = 0;
-    int V = 2888; // Number of vertices
+    int V = 2890; // Number of vertices
 
     // // SNAP dataset facebook V=4039 directed=0
-    // const char* filename = "C:\\lau\\design of algorithms\\projects\\datasets\\facebook_combined.txt";
+    // const char* filename = "C:datasets\\facebook_combined.txt";
     // printf("Reading graph from file: %s\n", filename);
     // Graph* graph = createGraphFromFile(filename, V, directed);
 
@@ -295,9 +412,7 @@ int main() {
     }
 
     printf("Labels initialized to -1.\n");
-
-    // Run the CPM algorithm
-    printf("Running Clique Percolation Method (CPM) with k=%d...\n", k);
+    
     cliqueCommunity(graph, k, labels, directed);
     printf("CPM completed.\n");
 
@@ -307,25 +422,10 @@ int main() {
     // Print the number of communities and the communities
     printCommunities(labels, V);
 
-    printf("done printing.........\n");
-
-    // // Print the labels array
-    // for (int i = 0; i < V; ++i) {
-    //     printf("Node %d -> Label %d\n", i, labels[i]);
-    // }
-
     // Calculate performance measures
-    printf("Calculating modularity...\n");
-    double modularity = calculateModularity(graph, labels, V, graph->E, directed);
-    printf("Modularity calculated: %f\n", modularity);
-
-    printf("Calculating conductance...\n");
+     double modularity = calculateModularity(graph, labels, V, graph->E, directed);
     double conductance = calculateConductance(graph, labels, V, directed);
-    printf("Conductance calculated: %f\n", conductance);
-
-    printf("Calculating coverage...\n");
     double coverage = calculateCoverage(graph, labels, V, graph->E, directed);
-    printf("Coverage calculated: %f\n", coverage);
 
     // Print the results
     printf("Modularity: %f\n", modularity);

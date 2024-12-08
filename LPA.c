@@ -27,65 +27,87 @@ void shuffle(int *array, int n) {
 void labelPropagation(Graph* graph, int* labels) {
     int V = graph->V;
     int* node_order = (int*)malloc(V * sizeof(int));
+    int* label_count = (int*)calloc(V, sizeof(int));
+    int* label_frequency = (int*)calloc(V, sizeof(int)); // To track label stabilization
     int loop_count = 0;
     int changed;
 
+    if (!node_order || !label_count || !label_frequency) {
+        fprintf(stderr, "Memory allocation failed\n");
+        exit(1);
+    }
+
+    // Initialize labels and node order
     for (int i = 0; i < V; ++i) {
         node_order[i] = i;
         labels[i] = i; // Initialize each node with its own label
     }
     printf("Initialized nodes with their own labels successfully.\n");
-    srand(3000); // Fix the random seed for consistent results
 
-    int* label_count = (int*)calloc(V, sizeof(int));
-    if (label_count == NULL) {
-        fprintf(stderr, "Memory allocation failed for label_count\n");
-        exit(1);
-    }
+    srand(3000); // Fix the random seed for consistent results
 
     while (1) {
         loop_count++;
         changed = 0;
+        //printf("Loop count: %d\n", loop_count);
 
         shuffle(node_order, V);
 
         for (int k = 0; k < V; ++k) {
-            memset(label_count, 0, V * sizeof(int)); // Reset the array
-            int i = node_order[k];
-            Node* node = graph->array[i].head;
+    memset(label_count, 0, V * sizeof(int)); // Reset the array
+    int i = node_order[k];
+    Node* node = graph->array[i].head;
+    //printf("Processing node %d (k = %d)\n", i, k);
 
-            // Count the labels of neighbors
-            while (node) {
-                label_count[labels[node->dest]]++;
-                node = node->next;
-            }
-
-            // Find the label with the highest count
-            int max_label = labels[i];
-            int max_count = label_count[max_label];
-            for (int j = 0; j < V; ++j) {
-                if (label_count[j] > max_count) {
-                    max_count = label_count[j];
-                    max_label = j;
-                }
-            }
-
-            // Update the label if needed
-            if (labels[i] != max_label) {
-                labels[i] = max_label;
-                changed = 1;
-            }
+    // Count the labels of neighbors
+    while (node) {
+        if (node->dest < 0 || node->dest >= V) {
+            printf("Invalid node destination: %d\n", node->dest);
+            exit(1);
         }
-
-        if (!changed || loop_count >= MAX_ITER) {
-            printf("Max iterations reached or no changes made. Terminating.\n");
-            break;
+        if (labels[node->dest] < 0 || labels[node->dest] >= V) {
+            printf("Invalid label for node %d: %d\n", node->dest, labels[node->dest]);
+            exit(1);
         }
+        label_count[labels[node->dest]]++;
+        //printf("Neighbor %d with label %d\n", node->dest, labels[node->dest]);
+        node = node->next;
+    }
+
+    // Find the label with the highest count
+    int max_label = labels[i];
+    int max_count = label_count[max_label];
+    for (int j = 0; j < V; ++j) {
+        if (label_count[j] > max_count) {
+            max_count = label_count[j];
+            max_label = j;
+        }
+    }
+
+    // Update the label if needed
+    if (labels[i] != max_label) {
+        labels[i] = max_label;
+        changed = 1;
+        //printf("Node %d label changed to %d\n", i, max_label);
+    } else {
+        //printf("Node %d label remains %d\n", i, labels[i]);
+    }
+
+    // Reset the label_count array for the next iteration
+    memset(label_count, 0, V * sizeof(int));
+}
+
+if (!changed || loop_count >= MAX_ITER) {
+    printf("Max iterations reached or no changes made. Terminating.\n");
+    break;
+}
     }
 
     free(label_count);
     free(node_order);
+    free(label_frequency);
 }
+
 
 
 void printCommunities(int* labels, int V) {
@@ -119,11 +141,14 @@ int main() {
     int directed = 0;
     int V = 4039; // Number of vertices
 
+//   // twitter lists V=23629 directed=1 seed=2000
+//     const char* filename = "C:datasets\\outego-gplus.txt";
+//     Graph* graph = createGraphFromFile(filename, V, directed);
+
     // // twitter lists V=23370 directed=1 seed=2000
     // const char* filename = "C:datasets\\outego-twitter.txt";
     // Graph* graph = createGraphFromFile(filename, V, directed);
-
-
+   
    //SNAP facebook V=4039 directed=0 seed=3000
     const char* filename = "C:datasets\\facebook_combined.txt";
     Graph* graph = createGraphFromFile(filename, V, directed);

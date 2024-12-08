@@ -59,9 +59,9 @@ Graph* createGraphFromFile(const char* filename, int V, int directed) {
     while (fscanf(file, "%d %d", &src, &dest) != EOF) {
         addEdge(graph, src, dest);
         edge_count++;
-        if (edge_count % 100000 == 0) {
-            printf("%d edges added...\n", edge_count);
-        }
+        // if (edge_count % 100000 == 0) {
+        //     printf("%d edges added...\n", edge_count);
+        // }
     }
     printf("Total %d edges added successfully.\n", edge_count);
 
@@ -136,9 +136,9 @@ Graph* createGraphFromFileWithMapping(const char* filename, int V, int directed)
         printf("Read edge: %d -> %d (mapped to %d -> %d)\n", src, dest, src_index, dest_index);
         addEdge(graph, src_index, dest_index);
         edge_count++;
-        if (edge_count % 100000 == 0) {
-            printf("%d edges added...\n", edge_count);
-        }
+        // if (edge_count % 100000 == 0) {
+        //     printf("%d edges added...\n", edge_count);
+        // }
     }
     printf("Total %d edges added successfully.\n", edge_count);
 
